@@ -115,17 +115,48 @@ class DashboardView extends HTMLElement {
         const event = doc.data();
         const listItem = document.createElement('li');
 
+        let contentAdded = false;
+
         if (event.type === 'check-in') {
-            listItem.textContent = event.status; // "Checked-In"
+            listItem.innerHTML = `<strong>${event.status}</strong>`; // "Checked-In"
+            contentAdded = true;
         } else if (event.type === 'help_request') {
+            const primaryLabel = document.createElement('strong');
             const callLink = document.createElement('a');
             callLink.href = 'tel:+1234567890';
             callLink.textContent = event.status; // "Call Parent"
-            listItem.appendChild(callLink);
-        } else {
-            const formattedTime = formatTimestamp(event.timestamp);
-            listItem.textContent = `${formattedTime} - ${event.message}`;
+            primaryLabel.appendChild(callLink);
+            listItem.appendChild(primaryLabel);
+
+            if (event.message && event.message.includes('Reason:')) {
+                const reasonText = event.message.split('Reason:')[1].trim().replace(/\.$/, "");
+                const reasonEl = document.createElement('div');
+                reasonEl.textContent = `Reason: ${reasonText}`;
+                listItem.appendChild(reasonEl);
+            }
+            contentAdded = true;
+
+        } else if (event.type === 'NOT_OK_SUBMITTED') {
+            listItem.innerHTML = `<strong>${event.label}</strong>`; // "Parent Update"
+            const reasonEl = document.createElement('div');
+            reasonEl.textContent = event.reason_display_text;
+            listItem.appendChild(reasonEl);
+
+            if (event.message) {
+                const messageEl = document.createElement('div');
+                messageEl.style.fontStyle = 'italic';
+                messageEl.style.marginTop = '4px';
+                messageEl.textContent = event.message;
+                listItem.appendChild(messageEl);
+            }
+            contentAdded = true;
         }
+
+        if (event.message && !contentAdded) {
+            // Fallback for other or older event types that just have a message
+            listItem.textContent = event.message;
+        }
+
 
         if (event.level === 'critical') {
             listItem.classList.add('critical');

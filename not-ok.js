@@ -20,6 +20,8 @@ class NotOkView extends HTMLElement {
           border-radius: 12px;
           text-decoration: none;
           color: var(--white);
+          border: none;
+          cursor: pointer;
         }
         .contact-btn {
             background-color: var(--primary-color);
@@ -29,8 +31,9 @@ class NotOkView extends HTMLElement {
         }
         .help-btn {
           background-color: var(--danger-color);
-          border: none;
-          cursor: pointer;
+        }
+        .submit-btn {
+            background-color: #5bc0de; /* Teal/blue color */
         }
         .reason-buttons {
             margin-top: 30px;
@@ -65,12 +68,13 @@ class NotOkView extends HTMLElement {
         <a href="tel:+1234567890" class="action-btn contact-btn">Contact My Child</a>
         <a href="sms:+1234567890" class="action-btn message-btn">Message My Child</a>
         <button class="action-btn help-btn">Request Help</button>
+        <button class="action-btn submit-btn">Submit</button>
 
         <div class="reason-buttons">
-            <button class="reason-btn">I feel unwell</button>
-            <button class="reason-btn">I fell or hurt myself</button>
-            <button class="reason-btn">I need help at home</button>
-            <button class="reason-btn">Other</button>
+            <button class="reason-btn" data-reason="UNWELL">I feel unwell</button>
+            <button class="reason-btn" data-reason="FALL">I fell or hurt myself</button>
+            <button class="reason-btn" data-reason="HOME_HELP">I need help at home</button>
+            <button class="reason-btn" data-reason="OTHER">Other</button>
         </div>
 
         <textarea class="note-input" placeholder="Add a quick note..."></textarea>
@@ -78,6 +82,7 @@ class NotOkView extends HTMLElement {
     `;
 
     this.helpBtn = this.shadowRoot.querySelector('.help-btn');
+    this.submitBtn = this.shadowRoot.querySelector('.submit-btn');
     this.reasonButtons = this.shadowRoot.querySelectorAll('.reason-btn');
     this.noteInput = this.shadowRoot.querySelector('.note-input');
 
@@ -89,21 +94,66 @@ class NotOkView extends HTMLElement {
     });
 
     this.helpBtn.addEventListener('click', () => this.requestHelp());
+    this.submitBtn.addEventListener('click', () => this.submitUpdate());
+  }
+
+  submitUpdate() {
+    const selectedButton = this.shadowRoot.querySelector('.reason-btn.selected');
+    if (!selectedButton) {
+        alert('Please select a reason first.');
+        return;
+    }
+
+    const reason = selectedButton.dataset.reason;
+    const reasonText = selectedButton.textContent;
+    const note = this.noteInput.value;
+    const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+    db.collection('escalation_events').add({
+        type: 'NOT_OK_SUBMITTED',
+        label: 'Parent Update',
+        reason: reason,
+        reason_display_text: reasonText,
+        message: note || null,
+        timestamp: serverTimestamp,
+        parent_id: 'user1', // Hardcoded for now
+        level: 'info'
+    })
+    .then(() => {
+        alert('Sent to your child.');
+    })
+    .catch((error) => {
+        console.error('Error submitting update: ', error);
+        alert('There was a problem sending the update.');
+    });
   }
 
   requestHelp() {
     let reason = '';
+    let reasonText = '';
     const selectedButton = this.shadowRoot.querySelector('.reason-btn.selected');
     if (selectedButton) {
-        reason = selectedButton.textContent;
+        reason = selectedButton.dataset.reason;
+        reasonText = selectedButton.textContent;
     }
     const note = this.noteInput.value;
-    let message = 'Parent requested help!';
-    if (reason) message += ` Reason: ${reason}.`;
-    if (note) message += ` Note: ${note}.`;
     const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
 
-    this.logEvent({ type: 'help_request', status: 'Call Parent', message: message, checkin_at: serverTimestamp }, 'critical');
+    db.collection('help_requests').add({
+      parent_id: 'user1', // Hardcoded for now
+      reason: reason || null,
+      message: note || null,
+      created_at: serverTimestamp,
+      status: 'open'
+    });
+
+    let logMessage = 'Call Parent';
+    if(reason) {
+      logMessage = `Call Parent. Reason: ${reasonText}`;
+    }
+
+    this.logEvent({ type: 'help_request', status: 'Call Parent', message: logMessage, checkin_at: serverTimestamp }, 'critical');
+
     db.collection('parents').doc('user1').update({
         last_checkin_at: serverTimestamp,
         last_status: 'NOT_OK'
