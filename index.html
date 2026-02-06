@@ -13,6 +13,7 @@
     <header>
         <img src="logo.svg" alt="Guardian Angel Logo" class="logo">
         <h1>Guardian Angel</h1>
+        <language-toggle></language-toggle>
     </header>
 
     <main>
@@ -34,17 +35,23 @@
         <div id="child-view">
             <dashboard-view></dashboard-view>
         </div>
+        <unrecognized-speech-dialog id="unrecognized-speech-dialog"></unrecognized-speech-dialog>
     </main>
 
+    <script src="localization.js" type="module"></script>
+    <script src="language-toggle.js" type="module"></script>
     <script src="main.js" type="module"></script>
     <script src="dashboard.js" type="module"></script>
     <script src="notification-service.js" type="module"></script>
     <script src="not-ok.js" type="module"></script>
+    <script src="speech-button.js" type="module"></script>
+    <script src="unrecognized-speech-dialog.js" type="module"></script>
     <script>
         const checkInTab = document.getElementById('check-in-tab');
         const notOkTab = document.getElementById('not-ok-tab');
         const checkInView = document.getElementById('check-in-view');
         const notOkView = document.getElementById('not-ok-view');
+        const unrecognizedSpeechDialog = document.getElementById('unrecognized-speech-dialog');
 
         checkInTab.addEventListener('click', () => {
             checkInView.style.display = 'block';
@@ -58,6 +65,18 @@
             notOkView.style.display = 'block';
             notOkTab.classList.add('active');
             checkInTab.classList.remove('active');
+        });
+
+        document.addEventListener('show-unrecognized-speech-dialog', () => {
+            unrecognizedSpeechDialog.show();
+        });
+
+        unrecognizedSpeechDialog.addEventListener('response', (e) => {
+            if (e.detail.status === 'ok') {
+                document.querySelector('checkin-widget').checkIn();
+            } else {
+                notOkTab.click();
+            }
         });
     </script>
 </body>

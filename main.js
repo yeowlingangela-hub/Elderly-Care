@@ -1,4 +1,5 @@
 import { db } from './firebase-config.js';
+import { getLocalizedString, getLanguage } from './localization.js';
 
 const notificationService = document.querySelector('#notification-service');
 
@@ -71,22 +72,43 @@ class CheckinWidget extends HTMLElement {
         }
       </style>
       <div class="wrapper">
-        <div class="status"><span id="status-indicator" class="status-indicator"></span>Status: <span id="status-text"></span></div>
+        <div class="status"><span id="status-indicator" class="status-indicator"></span><span id="status-label"></span>: <span id="status-text"></span></div>
         <div class="button-container">
-            <button class="check-in-btn">I'm OK</button>
-            <button class="not-ok-btn">I'm Not OK</button>
+            <button class="check-in-btn"></button>
+            <button class="not-ok-btn"></button>
         </div>
+        <speech-button></speech-button>
       </div>
     `;
 
     this.statusIndicator = this.shadowRoot.querySelector('#status-indicator');
+    this.statusLabel = this.shadowRoot.querySelector('#status-label');
     this.statusText = this.shadowRoot.querySelector('#status-text');
     this.checkInBtn = this.shadowRoot.querySelector('.check-in-btn');
     this.notOkBtn = this.shadowRoot.querySelector('.not-ok-btn');
+    this.speechButton = this.shadowRoot.querySelector('speech-button');
 
     this.checkInBtn.addEventListener('click', () => this.checkIn());
     this.notOkBtn.addEventListener('click', () => this.showNotOkView());
     document.addEventListener('schedule-updated', (e) => this.updateSchedule(e.detail));
+    document.addEventListener('language-changed-internal', () => this.updateLocalizedStrings());
+
+
+    this.speechButton.addEventListener('speech-recognized', (e) => {
+        if (e.detail.status === 'ok') {
+            this.checkIn();
+        } else {
+            this.showNotOkView();
+        }
+    });
+
+    this.speechButton.addEventListener('speech-unrecognized', () => {
+        const event = new CustomEvent('show-unrecognized-speech-dialog', {
+            bubbles: true,
+            composed: true
+        });
+        this.dispatchEvent(event);
+    });
 
     this.checkinInterval = null;
     this.escalationInterval = null;
@@ -95,6 +117,14 @@ class CheckinWidget extends HTMLElement {
     this.startCheckinWindow();
     this.startEscalationProcessor();
     this.checkParentStatusAndRoute();
+    this.updateLocalizedStrings();
+  }
+
+  updateLocalizedStrings() {
+      this.statusLabel.textContent = getLocalizedString('status');
+      this.checkInBtn.textContent = getLocalizedString('im_ok');
+      this.notOkBtn.textContent = getLocalizedString('im_not_ok');
+      this.setStatus(this.getAttribute('status') || 'Pending');
   }
 
   showNotOkView() {
@@ -150,7 +180,7 @@ class CheckinWidget extends HTMLElement {
   }
 
   setStatus(status) {
-    this.statusText.textContent = status;
+    this.statusText.textContent = getLocalizedString(status.toLowerCase());
     this.setAttribute('status', status);
     this.statusIndicator.className = 'status-indicator ' + status.toLowerCase();
   }
