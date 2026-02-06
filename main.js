@@ -43,47 +43,49 @@ class CheckinWidget extends HTMLElement {
           margin-bottom: 30px;
           font-weight: 500;
         }
+        .button-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .check-in-btn, .not-ok-btn {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.8em;
+            font-weight: bold;
+            border-radius: 15px;
+            cursor: pointer;
+            border: none;
+            color: var(--white);
+            transition: transform 0.2s;
+        }
         .check-in-btn {
-          width: 90%;
-          padding: 25px;
-          font-size: 2em;
-          font-weight: bold;
-          border-radius: 15px;
-          cursor: pointer;
-          border: none;
-          color: var(--white);
-          background-color: var(--success-color);
-          transition: transform 0.2s;
+            background-color: var(--success-color);
         }
-        .check-in-btn:hover {
+        .not-ok-btn {
+            background-color: var(--danger-color);
+        }
+        .check-in-btn:hover, .not-ok-btn:hover {
             transform: scale(1.02);
-        }
-        .emergency-btn {
-          width: 90%;
-          padding: 15px;
-          font-size: 1.2em;
-          border-radius: 10px;
-          cursor: pointer;
-          border: none;
-          color: var(--danger-color);
-          background-color: transparent;
-          margin-top: 20px;
         }
       </style>
       <div class="wrapper">
         <div class="status"><span id="status-indicator" class="status-indicator"></span>Status: <span id="status-text"></span></div>
-        <button class="check-in-btn">I'm OK</button>
-        <button class="emergency-btn">I need help</button>
+        <div class="button-container">
+            <button class="check-in-btn">I'm OK</button>
+            <button class="not-ok-btn">I'm Not OK</button>
+        </div>
       </div>
     `;
 
     this.statusIndicator = this.shadowRoot.querySelector('#status-indicator');
     this.statusText = this.shadowRoot.querySelector('#status-text');
     this.checkInBtn = this.shadowRoot.querySelector('.check-in-btn');
-    this.emergencyBtn = this.shadowRoot.querySelector('.emergency-btn');
+    this.notOkBtn = this.shadowRoot.querySelector('.not-ok-btn');
 
     this.checkInBtn.addEventListener('click', () => this.checkIn());
-    this.emergencyBtn.addEventListener('click', () => this.triggerEmergency());
+    this.notOkBtn.addEventListener('click', () => this.showNotOkView());
     document.addEventListener('schedule-updated', (e) => this.updateSchedule(e.detail));
 
     this.checkinInterval = null;
@@ -92,6 +94,24 @@ class CheckinWidget extends HTMLElement {
     this.checkTime();
     this.startCheckinWindow();
     this.startEscalationProcessor();
+    this.checkParentStatusAndRoute();
+  }
+
+  showNotOkView() {
+    document.getElementById('not-ok-tab').click();
+  }
+
+  checkParentStatusAndRoute() {
+      db.collection('parents').doc('user1').get().then(doc => {
+          if (doc.exists) {
+              const parentData = doc.data();
+              if (parentData.last_status === 'NOT_OK') {
+                  this.showNotOkView();
+              }
+          }
+      }).catch(error => {
+          console.error("Error getting parent status: ", error);
+      });
   }
 
   updateSchedule(schedule) {
@@ -116,18 +136,17 @@ class CheckinWidget extends HTMLElement {
   }
 
   checkIn() {
+    const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
     this.setStatus('OK');
-    this.logEvent('Check-in received');
+    this.logEvent({ type: 'check-in', status: 'Checked-In', checkin_at: serverTimestamp });
+    db.collection('parents').doc('user1').update({
+        last_checkin_at: serverTimestamp,
+        last_status: 'OK'
+    });
     this.checkInBtn.disabled = true;
     this.checkInBtn.style.backgroundColor = '#aaa';
     clearInterval(this.checkinInterval);
     this.cancelEscalation();
-  }
-
-  triggerEmergency() {
-    this.setStatus('Escalated');
-    this.logEvent('Emergency triggered by parent');
-    // This should also create an escalation document with a high priority
   }
 
   setStatus(status) {
@@ -136,11 +155,17 @@ class CheckinWidget extends HTMLElement {
     this.statusIndicator.className = 'status-indicator ' + status.toLowerCase();
   }
 
-  logEvent(message) {
-    db.collection('escalation_events').add({
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      message: message
-    })
+  logEvent(data) {
+    const eventData = {
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (typeof data === 'string') {
+        eventData.message = data;
+    } else {
+        Object.assign(eventData, data);
+    }
+    db.collection('escalation_events').add(eventData)
     .then(() => console.log('Event logged'))
     .catch((error) => console.error('Error logging event: ', error));
   }

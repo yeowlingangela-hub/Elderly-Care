@@ -101,20 +101,31 @@ class NotOkView extends HTMLElement {
     let message = 'Parent requested help!';
     if (reason) message += ` Reason: ${reason}.`;
     if (note) message += ` Note: ${note}.`;
+    const serverTimestamp = firebase.firestore.FieldValue.serverTimestamp();
 
-    this.logEvent(message, 'critical');
+    this.logEvent({ type: 'help_request', status: 'Call Parent', message: message, checkin_at: serverTimestamp }, 'critical');
+    db.collection('parents').doc('user1').update({
+        last_checkin_at: serverTimestamp,
+        last_status: 'NOT_OK'
+    });
     // Immediately escalate
     this.escalate();
 
     alert('Your child and emergency contacts have been notified.');
   }
 
-  logEvent(message, level = 'info') {
-    db.collection('escalation_events').add({
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      message: message,
-      level: level
-    })
+  logEvent(data, level = 'info') {
+    const eventData = {
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        level: level
+    };
+
+    if (typeof data === 'string') {
+        eventData.message = data;
+    } else {
+        Object.assign(eventData, data);
+    }
+    db.collection('escalation_events').add(eventData)
     .then(() => console.log('Event logged'))
     .catch((error) => console.error('Error logging event: ', error));
   }

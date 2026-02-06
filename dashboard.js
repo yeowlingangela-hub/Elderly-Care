@@ -1,5 +1,23 @@
 import { db } from './firebase-config.js';
 
+// Helper function to format Firestore timestamps
+const formatTimestamp = (timestamp) => {
+    if (timestamp && typeof timestamp.toDate === 'function') {
+        const date = timestamp.toDate();
+        const options = {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        };
+        return new Intl.DateTimeFormat('en-US', options).format(date);
+    } else {
+        return 'Date unavailable';
+    }
+};
+
 class DashboardView extends HTMLElement {
   constructor() {
     super();
@@ -56,19 +74,11 @@ class DashboardView extends HTMLElement {
         #event-log li.critical {
             border-left-color: var(--danger-color);
         }
-        .schedule-inputs input {
-          margin-right: 10px;
-          padding: 8px;
-          border-radius: 5px;
-          border: 1px solid var(--medium-gray);
-        }
-        #save-schedule {
-            background-color: var(--primary-color);
-            color: var(--white);
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
+        .checkin-time {
+            margin-top: 10px;
+            font-size: 1.1em;
+            color: #333;
+            font-weight: 500;
         }
       </style>
       <div class="wrapper">
@@ -76,7 +86,7 @@ class DashboardView extends HTMLElement {
         <div class="status-display">
             <div>
                 <div class="status-text">Parent's Status: <span id="parent-status"></span></div>
-                <div id="last-seen"></div>
+                <div id="last-seen" class="checkin-time">Last Check-in: <span id="last-checkin-time">--:--</span></div>
             </div>
             <a href="tel:+1234567890" class="call-btn">Call Parent</a>
         </div>
@@ -84,61 +94,50 @@ class DashboardView extends HTMLElement {
           <h3>Event Log</h3>
           <ul id="event-log"></ul>
         </div>
-        <div>
-            <h3>Schedule</h3>
-            <div class="schedule-inputs">
-                <label for="start-time">Morning Check-in Start:</label>
-                <input type="time" id="start-time" name="start-time">
-                <label for="end-time">Morning Check-in End:</label>
-                <input type="time" id="end-time" name="end-time">
-                <button id="save-schedule">Save</button>
-            </div>
-        </div>
       </div>
     `;
 
     this.eventLog = this.shadowRoot.querySelector('#event-log');
     this.parentStatus = this.shadowRoot.querySelector('#parent-status');
-    this.lastSeen = this.shadowRoot.querySelector('#last-seen');
-    this.saveScheduleBtn = this.shadowRoot.querySelector('#save-schedule');
-    this.startTimeInput = this.shadowRoot.querySelector('#start-time');
-    this.endTimeInput = this.shadowRoot.querySelector('#end-time');
-
-    this.saveScheduleBtn.addEventListener('click', () => this.saveSchedule());
+    this.lastCheckinTime = this.shadowRoot.querySelector('#last-checkin-time');
   }
 
   connectedCallback() {
     this.fetchEventLog();
     this.listenForStatusChanges();
-    this.loadSchedule();
+    this.listenForParentData();
   }
 
   fetchEventLog() {
     db.collection('escalation_events').orderBy('timestamp', 'desc').onSnapshot((querySnapshot) => {
       this.eventLog.innerHTML = '';
-      let lastCheckinTime = null;
       querySnapshot.forEach((doc) => {
         const event = doc.data();
         const listItem = document.createElement('li');
-        listItem.textContent = `${new Date(event.timestamp?.toDate()).toLocaleString()} - ${event.message}`;
+
+        if (event.type === 'check-in') {
+            listItem.textContent = event.status; // "Checked-In"
+        } else if (event.type === 'help_request') {
+            const callLink = document.createElement('a');
+            callLink.href = 'tel:+1234567890';
+            callLink.textContent = event.status; // "Call Parent"
+            listItem.appendChild(callLink);
+        } else {
+            const formattedTime = formatTimestamp(event.timestamp);
+            listItem.textContent = `${formattedTime} - ${event.message}`;
+        }
+
         if (event.level === 'critical') {
             listItem.classList.add('critical');
         }
         this.eventLog.appendChild(listItem);
-
-        if (event.message === 'Check-in received' && !lastCheckinTime) {
-            lastCheckinTime = event.timestamp.toDate();
-        }
       });
-
-      if(lastCheckinTime) {
-          this.lastSeen.textContent = `Last seen: ${lastCheckinTime.toLocaleString()}`;
-      }
     });
   }
 
   listenForStatusChanges() {
     const checkinWidget = document.querySelector('checkin-widget');
+    if (!checkinWidget) return;
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.attributeName === 'status') {
@@ -153,22 +152,15 @@ class DashboardView extends HTMLElement {
     this.parentStatus.textContent = checkinWidget.getAttribute('status');
   }
 
-  saveSchedule() {
-    const schedule = {
-        start: this.startTimeInput.value,
-        end: this.endTimeInput.value
-    };
-    localStorage.setItem('checkinSchedule', JSON.stringify(schedule));
-    // Dispatch an event to notify the checkin-widget of the change
-    document.dispatchEvent(new CustomEvent('schedule-updated', { detail: schedule }));
-  }
-
-  loadSchedule() {
-      const schedule = JSON.parse(localStorage.getItem('checkinSchedule'));
-      if(schedule) {
-          this.startTimeInput.value = schedule.start;
-          this.endTimeInput.value = schedule.end;
-      }
+  listenForParentData() {
+    db.collection('parents').doc('user1').onSnapshot((doc) => {
+        if (doc.exists) {
+            const parentData = doc.data();
+            if (parentData.last_checkin_at) {
+                this.lastCheckinTime.textContent = formatTimestamp(parentData.last_checkin_at);
+            }
+        }
+    });
   }
 }
 

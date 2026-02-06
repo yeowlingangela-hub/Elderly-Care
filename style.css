@@ -15,6 +15,11 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
+    /* Add background image */
+    background-image: url('background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
 }
 
 header {
@@ -44,6 +49,11 @@ main {
 #child-view {
     margin: 20px auto;
     max-width: 600px;
+}
+
+/* Add semi-transparent overlay to content cards */
+checkin-widget .wrapper, dashboard-view .wrapper, not-ok-view .wrapper {
+    background-color: rgba(255, 255, 255, 0.9);
 }
 
 .bottom-nav {
