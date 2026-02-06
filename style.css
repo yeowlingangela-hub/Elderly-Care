@@ -1,1 +1,72 @@
-/* Add styles here */
+:root {
+  --primary-color: #00afb0;
+  --secondary-color: #e6f7f7;
+  --text-color: #212529;
+  --background-color: #f8f9fa;
+  --success-color: #00afb0;
+  --danger-color: #f44336;
+  --light-gray: #f9f9f9;
+  --medium-gray: #ccc;
+  --white: #fff;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+}
+
+header {
+    background-color: var(--white);
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.logo {
+    height: 30px;
+    margin-right: 15px;
+}
+
+h1 {
+    color: var(--primary-color);
+    font-size: 1.8em;
+    margin: 0;
+}
+
+main {
+    padding: 20px;
+}
+
+#parent-view,
+#child-view {
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background-color: var(--white);
+    border-top: 1px solid #dee2e6;
+    padding: 10px 0;
+}
+
+.bottom-nav button {
+    background-color: transparent;
+    border: none;
+    color: #6c757d;
+    font-size: 1em;
+    padding: 10px 20px;
+}
+
+.bottom-nav button.active {
+    color: var(--primary-color);
+    font-weight: bold;
+}

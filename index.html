@@ -1,14 +1,64 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardian Angel</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+    <header>
+        <img src="logo.svg" alt="Guardian Angel Logo" class="logo">
+        <h1>Guardian Angel</h1>
+    </header>
+
+    <main>
+        <notification-service id="notification-service"></notification-service>
+
+        <div id="parent-view">
+            <div id="check-in-view">
+                <checkin-widget></checkin-widget>
+            </div>
+            <div id="not-ok-view" style="display: none;">
+                <not-ok-view></not-ok-view>
+            </div>
+            <nav class="bottom-nav">
+                <button id="check-in-tab" class="active">Check-in</button>
+                <button id="not-ok-tab">Not OK</button>
+            </nav>
+        </div>
+
+        <div id="child-view">
+            <dashboard-view></dashboard-view>
+        </div>
+    </main>
+
+    <script src="main.js" type="module"></script>
+    <script src="dashboard.js" type="module"></script>
+    <script src="notification-service.js" type="module"></script>
+    <script src="not-ok.js" type="module"></script>
+    <script>
+        const checkInTab = document.getElementById('check-in-tab');
+        const notOkTab = document.getElementById('not-ok-tab');
+        const checkInView = document.getElementById('check-in-view');
+        const notOkView = document.getElementById('not-ok-view');
+
+        checkInTab.addEventListener('click', () => {
+            checkInView.style.display = 'block';
+            notOkView.style.display = 'none';
+            checkInTab.classList.add('active');
+            notOkTab.classList.remove('active');
+        });
+
+        notOkTab.addEventListener('click', () => {
+            checkInView.style.display = 'none';
+            notOkView.style.display = 'block';
+            notOkTab.classList.add('active');
+            checkInTab.classList.remove('active');
+        });
+    </script>
 </body>
 </html>
